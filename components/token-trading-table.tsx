@@ -8,9 +8,11 @@ import { useWebSocket } from "@/hooks/use-websocket";
 import { Token, TokenCategory } from "@/types/token";
 import { TokenModal } from "./token-table/token-modal";
 import { CategoryColumn } from "./token-table/category-column";
-import { SearchInput } from "./token-table/search-input";
+import { FiltersSidebar } from "./filters-sidebar";
 import { ErrorBoundary } from "./token-table/error-boundary";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Filter } from "lucide-react";
+import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
 import { SortableColumn } from "@/types/token";
 
 /**
@@ -26,6 +28,8 @@ export function TokenTradingTable() {
   const { tokens: fetchedTokens } = useTokenData();
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<TokenCategory>("new-pairs");
 
   // Connect WebSocket for real-time updates
   useWebSocket(allTokens.length > 0 ? allTokens : fetchedTokens);
@@ -96,41 +100,63 @@ export function TokenTradingTable() {
 
   return (
     <ErrorBoundary>
-      <div className="space-y-4">
-        {/* Search */}
-        <div className="flex justify-end">
-          <SearchInput value={searchQuery} onChange={handleSearchChange} />
-        </div>
+      <div className="relative flex h-[calc(100vh-200px)] min-h-[600px]">
+        {/* Filters Sidebar */}
+        <FiltersSidebar
+          open={isFiltersOpen}
+          onClose={() => setIsFiltersOpen(false)}
+          selectedCategory={selectedCategory}
+          onCategoryChange={setSelectedCategory}
+        />
 
-        {/* Three Column Layout */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-[calc(100vh-250px)] min-h-[600px]">
-          <CategoryColumn
-            category="new-pairs"
-            tokens={categorizedTokens["new-pairs"]}
-            isLoading={isLoading}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onTokenClick={handleTokenClick}
-          />
-          <CategoryColumn
-            category="final-stretch"
-            tokens={categorizedTokens["final-stretch"]}
-            isLoading={isLoading}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onTokenClick={handleTokenClick}
-          />
-          <CategoryColumn
-            category="migrated"
-            tokens={categorizedTokens["migrated"]}
-            isLoading={isLoading}
-            sortColumn={sortColumn}
-            sortDirection={sortDirection}
-            onSort={handleSort}
-            onTokenClick={handleTokenClick}
-          />
+        {/* Main Content */}
+        <div className={cn(
+          "flex-1 transition-all duration-300",
+          isFiltersOpen && "ml-80"
+        )}>
+          {/* Top Bar with Filter Toggle */}
+          <div className="flex items-center justify-between mb-4 px-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              className="gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+            </Button>
+          </div>
+
+          {/* Three Column Layout */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 h-full px-4">
+            <CategoryColumn
+              category="new-pairs"
+              tokens={categorizedTokens["new-pairs"]}
+              isLoading={isLoading}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onTokenClick={handleTokenClick}
+            />
+            <CategoryColumn
+              category="final-stretch"
+              tokens={categorizedTokens["final-stretch"]}
+              isLoading={isLoading}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onTokenClick={handleTokenClick}
+            />
+            <CategoryColumn
+              category="migrated"
+              tokens={categorizedTokens["migrated"]}
+              isLoading={isLoading}
+              sortColumn={sortColumn}
+              sortDirection={sortDirection}
+              onSort={handleSort}
+              onTokenClick={handleTokenClick}
+            />
+          </div>
         </div>
 
         {/* Token Details Modal */}
