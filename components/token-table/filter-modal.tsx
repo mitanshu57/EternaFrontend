@@ -288,7 +288,7 @@ export function FilterModal({ open, onOpenChange }: FilterModalProps) {
                     className="h-4 w-4 rounded border-border"
                   />
                   <label htmlFor="ca-ends-pump" className="text-sm">
-                    CA ends in 'pump'
+                    CA ends in &lsquo;pump&rsquo;
                   </label>
                 </div>
 
