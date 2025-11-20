@@ -4,17 +4,19 @@ import { ThemeToggle } from "@/components/theme-toggle";
 export default function Home() {
   return (
     <main className="min-h-screen bg-background">
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8 sm:px-6 lg:px-8 max-w-7xl">
-        <div className="mb-4 sm:mb-8 flex items-start justify-between gap-4">
+      <div className="h-screen flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex-shrink-0 px-4 py-3 border-b border-border flex items-center justify-between bg-card">
           <div>
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Token Discovery</h1>
-            <p className="mt-1 sm:mt-2 text-sm sm:text-base text-muted-foreground">
-              Discover new trading opportunities
-            </p>
+            <h1 className="text-lg font-bold tracking-tight">Pulse</h1>
           </div>
           <ThemeToggle />
         </div>
-        <TokenTradingTable />
+        
+        {/* Main Content */}
+        <div className="flex-1 overflow-hidden">
+          <TokenTradingTable />
+        </div>
       </div>
     </main>
   );

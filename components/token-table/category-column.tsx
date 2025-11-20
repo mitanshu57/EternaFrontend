@@ -1,23 +1,22 @@
 "use client";
 
 import { memo, useMemo, useState } from "react";
-import { Token, TokenCategory } from "@/types/token";
+import { Token, TokenCategory, SortableColumn } from "@/types/token";
 import { TokenCard } from "./token-card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Filter, Zap, Search as SearchIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Filter, Zap, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SortableColumn } from "@/types/token";
+import { Input } from "@/components/ui/input";
+import { FilterModal } from "./filter-modal";
 
 interface CategoryColumnProps {
   category: TokenCategory;
   tokens: Token[];
-  isLoading: boolean;
   sortColumn: SortableColumn | null;
   sortDirection: "asc" | "desc";
-  onSort: (column: SortableColumn) => void;
+  onSort: (column: SortableColumn, category: TokenCategory) => void;
   onTokenClick: (token: Token) => void;
+  isLoading: boolean;
 }
 
 const categoryLabels: Record<TokenCategory, string> = {
@@ -33,33 +32,32 @@ const categoryLabels: Record<TokenCategory, string> = {
 export const CategoryColumn = memo(function CategoryColumn({
   category,
   tokens,
-  isLoading,
   sortColumn,
   sortDirection,
   onSort,
   onTokenClick,
+  isLoading,
 }: CategoryColumnProps) {
-  const categoryLabel = categoryLabels[category];
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState<"P1" | "P2" | "P3">("P1");
+  const [localSearch, setLocalSearch] = useState("");
+  const [preset, setPreset] = useState<"P1" | "P2" | "P3">("P1");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
-  const filteredAndSortedTokens = useMemo(() => {
-    let filtered = tokens;
+  const sortedTokens = useMemo(() => {
+    let filtered = [...tokens];
 
-    // Apply search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
+    // Filter by local search
+    if (localSearch) {
+      const query = localSearch.toLowerCase();
       filtered = filtered.filter(
         (token) =>
           token.symbol.toLowerCase().includes(query) ||
-          token.name.toLowerCase().includes(query) ||
-          token.pair.toLowerCase().includes(query)
+          token.name.toLowerCase().includes(query)
       );
     }
 
     // Apply sorting
     if (sortColumn) {
-      filtered = [...filtered].sort((a, b) => {
+      filtered.sort((a, b) => {
         const aVal = a[sortColumn];
         const bVal = b[sortColumn];
 
@@ -78,102 +76,119 @@ export const CategoryColumn = memo(function CategoryColumn({
     }
 
     return filtered;
-  }, [tokens, searchQuery, sortColumn, sortDirection]);
+  }, [tokens, sortColumn, sortDirection, localSearch]);
 
-  const content = useMemo(() => {
-    if (isLoading) {
-      return (
-        <div className="space-y-3 p-3">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 w-full" />
-          ))}
-        </div>
-      );
-    }
-
-    if (filteredAndSortedTokens.length === 0) {
-      return (
-        <div className="p-8 text-center text-muted-foreground text-sm">
-          No tokens in this category
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-2 p-2">
-        {filteredAndSortedTokens.map((token) => (
-          <TokenCard key={token.id} token={token} onTokenClick={onTokenClick} />
-        ))}
-      </div>
-    );
-  }, [isLoading, filteredAndSortedTokens, onTokenClick]);
+  const categoryLabel = categoryLabels[category];
 
   return (
-    <div className="flex flex-col h-full min-w-0 bg-card border border-border rounded-lg overflow-hidden">
+    <div className="flex flex-col h-full min-w-0 flex-1 border-r border-border last:border-r-0 bg-background">
       {/* Category Header */}
-      <div className="px-3 py-2 border-b border-border bg-muted/30">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-semibold">{categoryLabel}</h3>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-5 w-5"
-              aria-label={`Filter ${categoryLabel}`}
-            >
-              <Filter className="h-3 w-3" />
-            </Button>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant={selectedPreset === "P1" ? "default" : "outline"}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => setSelectedPreset("P1")}
-            >
-              P1
-            </Button>
-            <Button
-              variant={selectedPreset === "P2" ? "default" : "outline"}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => setSelectedPreset("P2")}
-            >
-              P2
-            </Button>
-            <Button
-              variant={selectedPreset === "P3" ? "default" : "outline"}
-              size="sm"
-              className="h-6 px-2 text-xs"
-              onClick={() => setSelectedPreset("P3")}
-            >
-              P3
-            </Button>
-          </div>
-        </div>
+      <div className="px-4 py-3 space-y-3 bg-card border-b border-border sticky top-0 z-10">
+        {/* Title */}
+        <h3 className="text-xl font-bold text-foreground">{categoryLabel}</h3>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <SearchIcon className="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Search by ticker or name"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-7 pl-7 text-xs"
-          />
-        </div>
+        {/* Search and Controls */}
+        <div className="flex items-center gap-2">
+          {/* Search Bar */}
+          <div className="relative flex-1">
+            <Search className="absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by ticker or name"
+              value={localSearch}
+              onChange={(e) => setLocalSearch(e.target.value)}
+              className="pl-8 h-8 text-xs bg-muted/50 border-border"
+            />
+          </div>
 
-        {/* Metrics Bar */}
-        <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
-          <Zap className="h-3 w-3" />
-          <span>0</span>
-          <span className="text-green-500">🟣</span>
+          {/* Lightning Icon with Count */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md bg-muted/50"
+            aria-label="Lightning"
+          >
+            <Zap className="h-3.5 w-3.5" />
+            <span className="absolute -bottom-1 -right-1 text-[10px] bg-primary text-primary-foreground rounded-full h-4 w-4 flex items-center justify-center">
+              0
+            </span>
+          </Button>
+
+          {/* Solana Logo */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md bg-muted/50 p-1"
+            aria-label="Solana"
+          >
+            <div className="w-full h-full bg-gradient-to-br from-purple-500 via-blue-500 to-cyan-500 rounded flex items-center justify-center">
+              <span className="text-[10px] font-bold text-white">S</span>
+            </div>
+          </Button>
+
+          {/* P1 P2 P3 Preset Buttons */}
+          <div className="flex items-center rounded-md bg-muted/50 p-0.5 border border-border">
+            {(["P1", "P2", "P3"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => setPreset(p)}
+                className={cn(
+                  "px-2 py-1 text-xs font-medium rounded transition-colors",
+                  preset === p
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+
+          {/* Filter Icon */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 rounded-md bg-muted/50"
+            aria-label="Filter"
+            onClick={() => setIsFilterOpen(true)}
+          >
+            <Filter className="h-3.5 w-3.5" />
+          </Button>
+          
+          {/* Filter Modal */}
+          <FilterModal open={isFilterOpen} onOpenChange={setIsFilterOpen} />
         </div>
       </div>
 
-      {/* Token Cards */}
-      <div className="flex-1 overflow-y-auto">{content}</div>
+      {/* Tokens List */}
+      <div className="flex-1 overflow-y-auto">
+        {isLoading ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="px-4 py-3">
+                <div className="space-y-2">
+                  <div className="h-4 bg-muted rounded w-3/4 animate-pulse" />
+                  <div className="h-3 bg-muted rounded w-1/2 animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : sortedTokens.length === 0 ? (
+          <div className="px-4 py-8 text-center text-sm text-muted-foreground">
+            No tokens in this category
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {sortedTokens.map((token) => (
+              <TokenCard
+                key={token.id}
+                token={token}
+                onTokenClick={onTokenClick}
+              />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 });
